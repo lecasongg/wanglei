@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公告管理 - 浙里卫企</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a1628 0%, #0d1f35 50%, #0a1628 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .sidebar-item { transition: all 0.2s ease; border-left: 3px solid transparent; }
+        .sidebar-item:hover { background: rgba(59, 130, 246, 0.1); }
+        .sidebar-item.active { background: rgba(59, 130, 246, 0.15); border-left-color: #3b82f6; }
+        .glow-border { box-shadow: 0 0 20px rgba(59, 130, 246, 0.08); }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .btn-primary:hover { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+        .btn-secondary { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); }
+        .btn-secondary:hover { background: rgba(59, 130, 246, 0.25); }
+        .btn-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.3); }
+        .tag-important { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .tag-normal { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .tag-published { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .tag-draft { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .tag-withdrawn { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+        .upload-zone { border: 2px dashed rgba(59, 130, 246, 0.3); transition: all 0.2s ease; }
+        /* Toast 动画 */
+        .toast-enter { animation: toastIn 0.3s ease forwards; }
+        .toast-leave { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100px); } }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+        input[type=radio] { accent-color: #3b82f6; }
+        select { background: rgba(55, 65, 81, 0.5); border: 1px solid rgba(107, 114, 128, 0.5); color: white; outline: none; }
+        select:focus { border-color: #3b82f6; }
+        /* 模态框背景遮罩 */
+        .modal-backdrop { background: rgba(0, 0, 0, 0.6); }
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.5); }
+    </style>
+</head>
+<body>
+    <div x-data="adminApp()">
+        <!-- Toast 提示 -->
+        <div x-show="toast.show" class="fixed top-4 right-4 z-[100] flex items-center space-x-3 px-5 py-3 rounded-lg shadow-xl transition-all"
+             :class="toast.type === 'error' ? 'bg-red-500/90 text-white' : toast.type === 'success' ? 'bg-green-500/90 text-white' : 'bg-blue-500/90 text-white'"
+             x-transition:enter="toast-enter" x-transition:leave="toast-leave">
+            <i class="fa-solid" :class="toast.type === 'error' ? 'fa-circle-exclamation' : toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-info'"></i>
+            <span class="text-sm" x-text="toast.message"></span>
+            <button class="ml-4 opacity-70 hover:opacity-100 transition" @click="toast.show = false">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <!-- 顶部导航 -->
+        <header class="h-12 flex items-center justify-end px-4" style="background: linear-gradient(90deg, #0a1628 0%, #0d1f35 50%, #1a365d 100%);">
+            <div class="flex items-center space-x-4 mr-auto">
+                <div class="text-blue-400 font-bold text-lg">浙里卫企</div>
+                <!-- 系统切换下拉 -->
+                <div class="relative" @click.outside="showSystemMenu = false">
+                    <div class="flex items-center space-x-1 cursor-pointer" @click="showSystemMenu = !showSystemMenu">
+                        <span class="text-gray-400 text-sm">当前系统:</span>
+                        <span class="text-gray-300 text-sm">浙里卫企</span>
+                        <i class="fa-solid fa-chevron-down text-gray-400 text-xs" :class="{ 'rotate-180': showSystemMenu }"></i>
+                    </div>
+                    <div x-show="showSystemMenu" class="absolute top-full left-0 mt-1 w-40 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-1 z-50">
+                        <div class="px-4 py-2 text-gray-300 text-sm hover:bg-gray-700 cursor-pointer">浙里卫企</div>
+                        <div class="px-4 py-2 text-gray-500 text-sm">其他系统（待接入）</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="text-gray-400 text-xs">我的信息</div>
+                <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center cursor-pointer">
+                    <i class="fa-solid fa-user text-xs text-white"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <div class="flex">
+            <!-- 左侧菜单 -->
+            <aside class="w-64 flex-shrink-0 border-r border-blue-900/30 p-4">
+                <div class="space-y-2">
+                    <div class="sidebar-item rounded-lg px-4 py-3 cursor-pointer flex items-center space-x-3 active">
+                        <i class="fa-solid fa-file-edit text-blue-400"></i>
+                        <span class="text-gray-300">公告管理</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 右侧内容区 -->
+            <div class="flex-1 p-6">
+                <!-- 页面标题 -->
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">公告管理</h1>
+                        <p class="text-gray-400 text-sm mt-1">管理系统公告内容，支持编辑、上传附件和设置弹窗显示</p>
+                    </div>
+                    <button class="btn-primary px-4 py-2 rounded-lg text-white text-sm transition flex items-center space-x-2" @click="showForm = true; resetForm()">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>新增公告</span>
+                    </button>
+                </div>
+
+                <!-- 编辑表单 -->
+                <div x-show="showForm" class="bg-gray-800/60 rounded-xl p-6 glow-border mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-white" x-text="editingId ? '编辑公告' : '新增公告'"></h2>
+                        <button class="text-gray-400 hover:text-white transition" @click="showForm = false">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-12 gap-6">
+                        <div class="col-span-8 space-y-6">
+                            <div>
+                                <label class="block text-gray-300 text-sm font-medium mb-2">公告标题 <span class="text-red-400">*</span></label>
+                                <input type="text" x-model="form.title" placeholder="请输入公告标题" maxlength="100" class="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500" />
+                                <p class="text-gray-500 text-xs mt-1" x-text="form.title.length + '/100'"></p>
+                            </div>
+                            <div>
+                                <label class="block text-gray-300 text-sm font-medium mb-2">公告摘要</label>
+                                <textarea x-model="form.summary" placeholder="请输入公告摘要" rows="2" maxlength="200" class="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"></textarea>
+                                <p class="text-gray-500 text-xs mt-1" x-text="form.summary.length + '/200'"></p>
+                            </div>
+                            <div>
+                                <label class="block text-gray-300 text-sm font-medium mb-2">公告内容 <span class="text-red-400">*</span></label>
+                                <textarea x-model="form.content" placeholder="请输入公告详细内容" rows="8" class="w-full bg-gray-700/50 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-span-4 space-y-6">
+                            <div>
+                                <label class="block text-gray-300 text-sm font-medium mb-3">公告类型 <span class="text-red-400">*</span></label>
+                                <div class="space-y-3">
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="radio" name="noticeType" x-model="form.type" value="normal">
+                                        <span class="tag-normal px-3 py-1 rounded text-sm">一般公告</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="radio" name="noticeType" x-model="form.type" value="important">
+                                        <span class="tag-important px-3 py-1 rounded text-sm">重要公告</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-gray-300 text-sm font-medium mb-3">弹窗显示 <span class="text-red-400">*</span></label>
+                                <div class="space-y-3">
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="radio" name="popupShow" x-model="form.popupShow" value="true">
+                                        <span class="text-gray-300">是（用户登录时弹窗提示）</span>
+                                    </label>
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="radio" name="popupShow" x-model="form.popupShow" value="false">
+                                        <span class="text-gray-300">否（仅在通知列表显示）</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-gray-300 text-sm font-medium mb-3">附件上传</label>
+                                <div class="upload-zone rounded-lg p-6 text-center cursor-pointer" @click="document.getElementById('fileUpload').click()" @dragover.prevent="$event.target.classList.add('dragover')" @dragleave.prevent="$event.target.classList.remove('dragover')" @drop.prevent="handleFileDrop">
+                                    <input type="file" id="fileUpload" class="hidden" multiple @change="handleFileSelect">
+                                    <i class="fa-solid fa-cloud-upload text-blue-400 text-4xl mb-3"></i>
+                                    <p class="text-gray-400 text-sm">点击或拖拽文件到此处上传</p>
+                                    <p class="text-gray-500 text-xs mt-1">支持 PDF、Word、Excel、图片等格式</p>
+                                </div>
+                                <div x-show="form.attachments.length > 0" class="mt-3 space-y-2">
+                                    <template x-for="(file, index) in form.attachments" :key="index">
+                                        <div class="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                                            <div class="flex items-center space-x-2">
+                                                <i class="fa-regular fa-file text-blue-400"></i>
+                                                <span class="text-gray-300 text-sm truncate max-w-[200px]" x-text="file.name || file"></span>
+                                                <span class="text-gray-500 text-xs" x-text="(file.size ? (file.size / 1024).toFixed(1) : '') + ' KB'"></span>
+                                            </div>
+                                            <button class="text-gray-400 hover:text-red-400 transition" @click="removeAttachment(index)">
+                                                <i class="fa-solid fa-xmark"></i>
+                                            </button>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end space-x-4 mt-8 pt-6 border-t border-gray-700">
+                        <button x-show="editingId" class="btn-danger px-6 py-2 rounded-lg text-sm transition flex items-center space-x-2" @click="deleteNotice(editingId)">
+                            <i class="fa-solid fa-trash"></i>
+                            <span>删除</span>
+                        </button>
+                        <button class="px-6 py-2 rounded-lg text-sm transition flex items-center space-x-2 bg-gray-700/50 text-gray-300 hover:bg-gray-700" @click="showForm = false; resetForm()">
+                            <i class="fa-solid fa-xmark"></i>
+                            <span>取消</span>
+                        </button>
+                        <button class="btn-secondary px-6 py-2 rounded-lg text-blue-400 text-sm transition flex items-center space-x-2" @click="saveDraft">
+                            <i class="fa-solid fa-pen"></i>
+                            <span>保存草稿</span>
+                        </button>
+                        <button class="btn-primary px-6 py-2 rounded-lg text-white text-sm transition flex items-center space-x-2" @click="publishNotice">
+                            <i class="fa-solid fa-check"></i>
+                            <span x-text="editingId ? '更新公告' : '发布公告'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 公告列表 -->
+                <div class="bg-gray-800/60 rounded-xl p-6 glow-border">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-white">公告列表</h2>
+                        <div class="flex items-center space-x-4">
+                            <!-- 搜索框 -->
+                            <div class="relative">
+                                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+                                <input type="text" x-model="searchKeyword" placeholder="搜索标题..." class="w-48 bg-gray-700/50 border border-gray-600 rounded-lg pl-9 pr-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500" />
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <label class="text-gray-400 text-sm">发布状态：</label>
+                                <select x-model="filterStatus" class="px-3 py-2 rounded-lg text-sm">
+                                    <option value="all">全部</option>
+                                    <option value="published">已发布</option>
+                                    <option value="draft">草稿</option>
+                                    <option value="withdrawn">已撤回</option>
+                                </select>
+                            </div>
+                            <span class="text-gray-400 text-sm">共 <span x-text="filteredNotices.length"></span> 条记录</span>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-gray-400 text-sm border-b border-gray-700">
+                                    <th class="pb-3 font-medium">标题</th>
+                                    <th class="pb-3 font-medium">类型</th>
+                                    <th class="pb-3 font-medium">弹窗</th>
+                                    <th class="pb-3 font-medium">发布状态</th>
+                                    <th class="pb-3 font-medium">发布时间</th>
+                                    <th class="pb-3 font-medium">浏览量</th>
+                                    <th class="pb-3 font-medium">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="notice in pagedNotices" :key="notice.id">
+                                    <tr class="border-b border-gray-700/50 hover:bg-gray-700/20 transition">
+                                        <td class="py-3"><span class="text-white text-sm max-w-xs block truncate" x-text="notice.title" :title="notice.title"></span></td>
+                                        <td class="py-3"><span class="px-2 py-1 rounded text-xs" :class="{ 'tag-important': notice.type === 'important', 'tag-normal': notice.type === 'normal' }" x-text="notice.typeText"></span></td>
+                                        <td class="py-3"><span class="px-2 py-1 rounded text-xs" :class="notice.popupShow ? 'bg-green-600/30 text-green-400' : 'bg-gray-600/30 text-gray-400'" x-text="notice.popupShow ? '是' : '否'"></span></td>
+                                        <td class="py-3">
+                                            <span class="px-2 py-1 rounded text-xs" :class="{ 'tag-published': notice.publishStatus === 'published', 'tag-draft': notice.publishStatus === 'draft', 'tag-withdrawn': notice.publishStatus === 'withdrawn' }" x-text="notice.publishStatusText"></span>
+                                        </td>
+                                        <td class="py-3"><span class="text-gray-400 text-sm" x-text="notice.date"></span></td>
+                                        <td class="py-3"><span class="text-gray-400 text-sm" x-text="notice.views"></span></td>
+                                        <td class="py-3">
+                                            <div class="flex items-center space-x-2">
+                                                <button class="text-blue-400 hover:text-blue-300 transition text-sm" @click="editNotice(notice)" title="编辑"><i class="fa-solid fa-pencil"></i></button>
+                                                <button class="text-gray-400 hover:text-red-400 transition text-sm" @click="deleteNotice(notice.id)" title="删除"><i class="fa-solid fa-trash"></i></button>
+                                                <button class="text-gray-400 hover:text-blue-400 transition text-sm" @click="viewNotice(notice)" title="查看"><i class="fa-solid fa-eye"></i></button>
+                                                <button x-show="notice.publishStatus === 'withdrawn'" class="text-green-400 hover:text-green-300 transition text-sm" @click="republishNotice(notice.id)" title="重新发布"><i class="fa-solid fa-rotate-left"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="pagedNotices.length === 0">
+                                    <td colspan="7" class="py-12 text-center">
+                                        <i class="fa-solid fa-inbox text-gray-600 text-4xl mb-3 block"></i>
+                                        <span class="text-gray-500 text-sm">暂无公告数据</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex items-center justify-between mt-4">
+                        <span class="text-gray-400 text-sm">
+                            显示 <span x-text="(currentPage - 1) * pageSize + 1"></span>-<span x-text="Math.min(currentPage * pageSize, filteredNotices.length)"></span> 条，共 <span x-text="filteredNotices.length"></span> 条
+                        </span>
+                        <div class="flex items-center space-x-2">
+                            <button class="px-3 py-1 rounded text-sm transition" :class="currentPage === 1 ? 'bg-gray-700/30 text-gray-600 cursor-not-allowed' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'" :disabled="currentPage === 1" @click="currentPage > 1 && currentPage--">上一页</button>
+                            <div class="flex items-center space-x-1">
+                                <template x-for="page in totalPages" :key="page">
+                                    <button class="w-8 h-8 rounded text-sm transition" :class="currentPage === page ? 'bg-blue-600 text-white' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'" @click="currentPage = page" x-text="page"></button>
+                                </template>
+                            </div>
+                            <button class="px-3 py-1 rounded text-sm transition" :class="currentPage >= totalPages ? 'bg-gray-700/30 text-gray-600 cursor-not-allowed' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'" :disabled="currentPage >= totalPages" @click="currentPage < totalPages && currentPage++">下一页</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 确认删除对话框 -->
+        <div x-show="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop" @click.self="showDeleteConfirm = false">
+            <div class="bg-gray-800 rounded-xl w-96 p-6 glow-border">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                        <i class="fa-solid fa-exclamation-triangle text-red-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-white font-semibold">确认删除</h3>
+                        <p class="text-gray-400 text-sm">确定要删除这条公告吗？此操作不可撤销。</p>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button class="btn-secondary px-4 py-2 rounded-lg text-blue-400 text-sm transition" @click="showDeleteConfirm = false">取消</button>
+                    <button class="btn-danger px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2" @click="confirmDelete">
+                        <i class="fa-solid fa-trash"></i>
+                        <span>确认删除</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 查看公告模态框 -->
+        <div x-show="showViewModal" class="fixed inset-0 z-50 flex items-center justify-center modal-backdrop" @click.self="showViewModal = false">
+            <div class="bg-gray-800 rounded-xl w-[640px] max-h-[80vh] overflow-y-auto glow-border">
+                <div class="flex items-center justify-between p-6 border-b border-gray-700">
+                    <div class="flex items-center space-x-3">
+                        <h3 class="text-lg font-semibold text-white" x-text="viewingNotice?.title"></h3>
+                        <span class="px-2 py-1 rounded text-xs" :class="{ 'tag-important': viewingNotice?.type === 'important', 'tag-normal': viewingNotice?.type === 'normal' }" x-text="viewingNotice?.typeText"></span>
+                    </div>
+                    <button class="text-gray-400 hover:text-white transition" @click="showViewModal = false">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center space-x-4 text-sm text-gray-400">
+                        <span>发布状态：<span class="text-gray-300" x-text="viewingNotice?.publishStatusText"></span></span>
+                        <span>发布时间：<span class="text-gray-300" x-text="viewingNotice?.date"></span></span>
+                        <span>浏览量：<span class="text-gray-300" x-text="viewingNotice?.views"></span></span>
+                    </div>
+                    <div x-show="viewingNotice?.summary" class="bg-gray-700/30 rounded-lg p-4 text-gray-300 text-sm">
+                        <p class="text-gray-400 text-xs mb-1">摘要</p>
+                        <p x-text="viewingNotice?.summary"></p>
+                    </div>
+                    <div class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap" x-text="viewingNotice?.content"></div>
+                    <div x-show="viewingNotice?.popupShow" class="flex items-center space-x-2 text-yellow-400 text-sm bg-yellow-400/10 rounded-lg px-4 py-2">
+                        <i class="fa-solid fa-bell"></i>
+                        <span>此公告将在用户登录时弹窗显示</span>
+                    </div>
+                </div>
+                <div class="flex justify-end p-4 border-t border-gray-700">
+                    <button class="btn-secondary px-6 py-2 rounded-lg text-blue-400 text-sm transition" @click="showViewModal = false">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function adminApp() {
+            return {
+                // 状态
+                showForm: false,
+                editingId: null,
+                filterStatus: 'all',
+                searchKeyword: '',
+                currentPage: 1,
+                pageSize: 5,
+                showSystemMenu: false,
+                showViewModal: false,
+                viewingNotice: null,
+                toast: { show: false, message: '', type: 'error' },
+                showDeleteConfirm: false,
+                deleteTargetId: null,
+
+                // 表单数据
+                form: {
+                    title: '',
+                    summary: '',
+                    content: '',
+                    type: 'normal',
+                    popupShow: 'false',
+                    attachments: []
+                },
+
+                // 模拟数据
+                notices: [
+                    { id: 1, title: '关于开展2024年度企业安全检查的通知', summary: '为加强企业安全生产管理，落实年度工作计划，现决定开展2024年度企业安全检查工作。', content: '各相关企业：根据年度工作计划，我单位将于2024年12月开展企业安全检查工作。请各企业提前做好准备，按要求提交相关材料。', type: 'important', typeText: '重要公告', popupShow: true, publishStatus: 'published', publishStatusText: '已发布', date: '2024-12-01 10:30', views: 128 },
+                    { id: 2, title: '系统维护通知', summary: '系统将于本周六进行例行维护。', content: '尊敬的用户：为保障系统稳定运行，我们将于本周六 00:00-06:00 进行系统维护，期间系统将暂停服务，敬请谅解。', type: 'normal', typeText: '一般公告', popupShow: false, publishStatus: 'published', publishStatusText: '已发布', date: '2024-12-10 15:20', views: 89 },
+                    { id: 3, title: '新版操作指南发布', summary: '系统新版操作指南已发布。', content: '新版操作指南已更新，请用户登录系统后在帮助中心查看。', type: 'normal', typeText: '一般公告', popupShow: false, publishStatus: 'draft', publishStatusText: '草稿', date: '2024-12-12 09:00', views: 15 },
+                    { id: 4, title: '企业年报申报截止提醒', summary: '2024年度企业年报申报即将截止。', content: '2024年度企业年报申报截止日期为2025年1月31日，请各企业按时完成申报，逾期将影响企业信用记录。', type: 'important', typeText: '重要公告', popupShow: true, publishStatus: 'withdrawn', publishStatusText: '已撤回', date: '2024-11-20 14:30', views: 256 }
+                ],
+
+                // 计算属性
+                get filteredNotices() {
+                    let result = this.notices;
+                    if (this.filterStatus !== 'all') {
+                        result = result.filter(n => n.publishStatus === this.filterStatus);
+                    }
+                    if (this.searchKeyword.trim()) {
+                        const kw = this.searchKeyword.trim().toLowerCase();
+                        result = result.filter(n => n.title.toLowerCase().includes(kw));
+                    }
+                    // 切换筛选/搜索时回到第一页
+                    return result;
+                },
+
+                get pagedNotices() {
+                    const start = (this.currentPage - 1) * this.pageSize;
+                    return this.filteredNotices.slice(start, start + this.pageSize);
+                },
+
+                get totalPages() {
+                    return Math.max(1, Math.ceil(this.filteredNotices.length / this.pageSize));
+                },
+
+                // 方法
+                showToast(message, type = 'error') {
+                    this.toast = { show: true, message, type };
+                    clearTimeout(this._toastTimer);
+                    this._toastTimer = setTimeout(() => { this.toast.show = false; }, 3000);
+                },
+
+                resetForm() {
+                    this.editingId = null;
+                    this.form = {
+                        title: '',
+                        summary: '',
+                        content: '',
+                        type: 'normal',
+                        popupShow: 'false',
+                        attachments: []
+                    };
+                },
+
+                editNotice(notice) {
+                    this.editingId = notice.id;
+                    this.form = {
+                        title: notice.title,
+                        summary: notice.summary || '',
+                        content: notice.content,
+                        type: notice.type,
+                        popupShow: notice.popupShow ? 'true' : 'false',
+                        attachments: []
+                    };
+                    this.showForm = true;
+                },
+
+                viewNotice(notice) {
+                    this.viewingNotice = notice;
+                    this.showViewModal = true;
+                },
+
+                saveDraft() {
+                    if (!this.form.title || !this.form.content) {
+                        this.showToast('请填写必填字段（标题、内容）');
+                        return;
+                    }
+                    if (this.editingId) {
+                        const index = this.notices.findIndex(n => n.id === this.editingId);
+                        if (index !== -1) {
+                            this.notices[index] = {
+                                ...this.notices[index],
+                                title: this.form.title,
+                                summary: this.form.summary,
+                                content: this.form.content,
+                                type: this.form.type,
+                                typeText: this.form.type === 'important' ? '重要公告' : '一般公告',
+                                popupShow: this.form.popupShow === 'true',
+                                date: new Date().toLocaleString('zh-CN')
+                            };
+                            // 如果是已发布状态改为草稿，那不给改
+                        }
+                    } else {
+                        this.notices.unshift({
+                            id: Date.now(),
+                            title: this.form.title,
+                            summary: this.form.summary,
+                            content: this.form.content,
+                            type: this.form.type,
+                            typeText: this.form.type === 'important' ? '重要公告' : '一般公告',
+                            popupShow: this.form.popupShow === 'true',
+                            publishStatus: 'draft',
+                            publishStatusText: '草稿',
+                            date: new Date().toLocaleString('zh-CN'),
+                            views: 0
+                        });
+                    }
+                    this.showForm = false;
+                    this.resetForm();
+                    this.showToast('草稿已保存', 'success');
+                },
+
+                publishNotice() {
+                    if (!this.form.title || !this.form.content) {
+                        this.showToast('请填写必填字段（标题、内容）');
+                        return;
+                    }
+                    if (this.editingId) {
+                        const index = this.notices.findIndex(n => n.id === this.editingId);
+                        if (index !== -1) {
+                            this.notices[index] = {
+                                ...this.notices[index],
+                                title: this.form.title,
+                                summary: this.form.summary,
+                                content: this.form.content,
+                                type: this.form.type,
+                                typeText: this.form.type === 'important' ? '重要公告' : '一般公告',
+                                popupShow: this.form.popupShow === 'true',
+                                publishStatus: 'published',
+                                publishStatusText: '已发布',
+                                date: new Date().toLocaleString('zh-CN')
+                            };
+                        }
+                    } else {
+                        this.notices.unshift({
+                            id: Date.now(),
+                            title: this.form.title,
+                            summary: this.form.summary,
+                            content: this.form.content,
+                            type: this.form.type,
+                            typeText: this.form.type === 'important' ? '重要公告' : '一般公告',
+                            popupShow: this.form.popupShow === 'true',
+                            publishStatus: 'published',
+                            publishStatusText: '已发布',
+                            date: new Date().toLocaleString('zh-CN'),
+                            views: 0
+                        });
+                    }
+                    this.showForm = false;
+                    this.resetForm();
+                    this.showToast('公告已发布', 'success');
+                },
+
+                deleteNotice(id) {
+                    if (!id) return;
+                    this.deleteTargetId = id;
+                    this.showDeleteConfirm = true;
+                },
+
+                confirmDelete() {
+                    if (this.deleteTargetId) {
+                        this.notices = this.notices.filter(n => n.id !== this.deleteTargetId);
+                        if (this.showForm && this.editingId === this.deleteTargetId) {
+                            this.showForm = false;
+                            this.resetForm();
+                        }
+                        this.showToast('公告已删除', 'success');
+                    }
+                    this.showDeleteConfirm = false;
+                    this.deleteTargetId = null;
+                },
+
+                republishNotice(id) {
+                    const index = this.notices.findIndex(n => n.id === id);
+                    if (index !== -1) {
+                        this.notices[index].publishStatus = 'published';
+                        this.notices[index].publishStatusText = '已发布';
+                        this.notices[index].date = new Date().toLocaleString('zh-CN');
+                    }
+                },
+
+                handleFileSelect(event) {
+                    Array.from(event.target.files).forEach(file => this.form.attachments.push(file));
+                },
+
+                handleFileDrop(event) {
+                    Array.from(event.dataTransfer.files).forEach(file => this.form.attachments.push(file));
+                    event.target.classList.remove('dragover');
+                },
+
+                removeAttachment(index) {
+                    this.form.attachments.splice(index, 1);
+                }
+            };
+        }
+    </script>
+</body>
+</html>
