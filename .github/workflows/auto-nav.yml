@@ -1,0 +1,40 @@
+name: 自动生成导航页
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*.html'
+      - '**/*.html'
+      - 'generate_nav.py'
+  workflow_dispatch:  # 允许手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  generate-nav:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: 运行导航页生成脚本
+        run: python generate_nav.py
+
+      - name: 提交并推送更新
+        run: |
+          git config user.name "auto-nav-bot"
+          git config user.email "auto-nav-bot@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "导航页无变化，跳过提交"
+          else
+            git commit -m "🔄 自动更新导航页"
+            git push
+          fi

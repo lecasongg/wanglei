@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文档管理 - 首页</title>
+    <title>王雷的网页管理入口</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -19,8 +19,19 @@
             text-align: center;
         }
         .header h1 { font-size: 28px; margin-bottom: 8px; }
-        .header p { font-size: 14px; opacity: 0.85; }
+        .header .count { font-size: 14px; opacity: 0.85; }
         .container { max-width: 800px; margin: 0 auto; padding: 24px 16px; }
+        .search-box {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-box:focus { border-color: #667eea; }
         .section-title {
             font-size: 16px;
             font-weight: 600;
@@ -63,8 +74,14 @@
             background: #667eea;
             color: white;
             transition: background 0.2s;
+            white-space: nowrap;
         }
         .btn:hover { background: #5a6fd6; }
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #aaa;
+        }
         .footer {
             text-align: center;
             padding: 40px 20px;
@@ -76,24 +93,32 @@
 <body>
     <div class="header">
         <h1>📂 王雷的网页管理入口</h1>
+        <div class="count">共 1 个页面</div>
     </div>
     <div class="container">
-        <div class="section-title">📄 所有页面</div>
-
+        <input class="search-box" type="text" id="search" placeholder="🔎 搜索页面名称..." oninput="filterPages()">
+        <div id="pageList">
         <div class="file-card">
             <div class="file-info">
                 <div class="file-icon">📢</div>
                 <div>
                     <div class="file-name">公告管理</div>
-                    <div class="file-path">/zjs/公告管理.html</div>
+                    <div class="file-path">zjs/公告管理.html</div>
                 </div>
             </div>
-            <a class="btn" href="./zjs/公告管理.html" target="_blank">查看</a>
-        </div>
-
+            <a class="btn" href="zjs/公告管理.html" target="_blank">查看</a>
+        </div></div>
     </div>
-    <div class="footer">
-        新页面推送后会自动更新到此列表
-    </div>
+    <div class="footer">新页面推送后自动更新</div>
+    <script>
+        function filterPages() {
+            const q = document.getElementById('search').value.toLowerCase();
+            document.querySelectorAll('.file-card').forEach(card => {
+                const name = card.querySelector('.file-name').textContent.toLowerCase();
+                const path = card.querySelector('.file-path').textContent.toLowerCase();
+                card.style.display = name.includes(q) || path.includes(q) ? 'flex' : 'none';
+            });
+        }
+    </script>
 </body>
 </html>
