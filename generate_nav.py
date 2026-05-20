@@ -7,6 +7,10 @@ from pathlib import Path
 REPO = Path(__file__).parent
 INDEX = REPO / "index.html"
 EXCLUDE = {".git", "__pycache__"}
+EXCLUDE_FILES = {
+    "ohonline-homepage-prototype.html",   # 原型文件，不在导航页展示
+    "可视化默认首页.html",                  # 暂不展示
+}
 
 ICON_MAP = {
     "公告": "📢",
@@ -56,6 +60,8 @@ def collect_html_files():
     for html in sorted(REPO.rglob("*.html")):
         rel = html.relative_to(REPO)
         if any(part.startswith(".") or part in EXCLUDE for part in rel.parts):
+            continue
+        if html.name in EXCLUDE_FILES:
             continue
         parent = str(rel.parent)
         if parent == ".":
