@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通知公告 - 浙里卫企</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a1628 0%, #0d1f35 50%, #0a1628 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.5); }
+        .nav-item {
+            position: relative;
+            padding: 0.5rem 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            transition: all 0.3s ease;
+        }
+        .nav-item:hover { color: rgba(255, 255, 255, 1); }
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        .nav-item:hover::after { width: 80%; }
+        .zhe-li-wei-qi {
+            position: relative;
+            color: white;
+            font-weight: bold;
+            font-size: 1.25rem;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.4);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        @keyframes glow {
+            from { text-shadow: 0 0 10px rgba(59, 130, 246, 0.8), 0 0 20px rgba(59, 130, 246, 0.6), 0 0 30px rgba(59, 130, 246, 0.4); }
+            to { text-shadow: 0 0 15px rgba(59, 130, 246, 1), 0 0 30px rgba(59, 130, 246, 0.8), 0 0 45px rgba(59, 130, 246, 0.6); }
+        }
+        .notice-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        .notice-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.15);
+        }
+        .notice-important { border-left: 3px solid #ef4444; }
+        .notice-normal { border-left: 3px solid #3b82f6; }
+        .tag-important { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .tag-normal { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .tag-published { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .tag-draft { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .tag-withdrawn { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
+        .glow-border { box-shadow: 0 0 20px rgba(59, 130, 246, 0.08); }
+        .floating-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            backdrop-filter: blur(10px);
+        }
+        .notice-tab {
+            padding: 0.5rem 1.5rem;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .notice-tab:hover { color: rgba(255, 255, 255, 0.9); }
+        .notice-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+        .tag-unread { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .tag-read { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .btn-mark-read {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            transition: all 0.2s ease;
+        }
+        .btn-mark-read:hover { background: rgba(34, 197, 94, 0.3); }
+        .btn-mark-read:disabled { opacity: 0.5; cursor: not-allowed; }
+        /* Toast 动画 */
+        .toast-enter { animation: toastIn 0.3s ease forwards; }
+        .toast-leave { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100px); } }
+        /* 附件样式 */
+        .att-item {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .att-item:hover { background: rgba(59, 130, 246, 0.2); }
+        /* 弹窗动画 */
+        .popup-overlay { animation: fadeIn 0.3s ease; }
+        .popup-modal { animation: scaleIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <div x-data="noticeApp()" x-init="init()">
+        <!-- Toast 提示 -->
+        <div x-show="toast.show" class="fixed top-4 right-4 z-[100] flex items-center space-x-3 px-5 py-3 rounded-lg shadow-xl transition-all"
+             :class="toast.type === 'error' ? 'bg-red-500/90 text-white' : toast.type === 'success' ? 'bg-green-500/90 text-white' : 'bg-blue-500/90 text-white'"
+             x-transition:enter="toast-enter" x-transition:leave="toast-leave">
+            <i class="fa-solid" :class="toast.type === 'error' ? 'fa-circle-exclamation' : toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-info'"></i>
+            <span class="text-sm" x-text="toast.message"></span>
+            <button class="ml-4 opacity-70 hover:opacity-100 transition" @click="toast.show = false">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- 登录弹窗公告 -->
+        <div x-show="showLoginPopup" class="fixed inset-0 z-50 flex items-center justify-center popup-overlay" style="background: rgba(0, 0, 0, 0.7);" @click.self="closeLoginPopup">
+            <div class="popup-modal bg-gray-800 rounded-xl w-[600px] max-h-[75vh] overflow-y-auto glow-border">
+                <div class="flex items-center justify-between p-6 border-b border-gray-700">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid fa-bullhorn text-yellow-400 text-xl"></i>
+                        <h3 class="text-lg font-semibold text-white">登录通知</h3>
+                    </div>
+                    <button class="text-gray-400 hover:text-white transition" @click="closeLoginPopup">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <template x-for="popupNotice in loginPopupNotices" :key="popupNotice.id">
+                        <div class="border border-yellow-500/30 bg-yellow-400/5 rounded-lg p-4">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="px-2 py-0.5 rounded text-xs" :class="{ 'tag-important': popupNotice.type === 'important', 'tag-normal': popupNotice.type === 'normal' }" x-text="popupNotice.typeText"></span>
+                                <span class="text-white font-medium" x-text="popupNotice.title"></span>
+                            </div>
+                            <p class="text-gray-400 text-sm" x-text="popupNotice.summary || '暂无摘要'"></p>
+                            <p class="text-gray-500 text-xs mt-2" x-text="popupNotice.date"></p>
+                            <div class="mt-3">
+                                <button class="text-blue-400 text-xs hover:text-blue-300 transition" @click="selectNotice(popupNotice); showLoginPopup = false; showNoticeModal = true">查看详情</button>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="loginPopupNotices.length === 0">
+                        <p class="text-gray-400 text-sm text-center py-4">暂无待查看的通知</p>
+                    </template>
+                </div>
+                <div class="flex justify-end p-4 border-t border-gray-700 space-x-3">
+                    <button class="px-4 py-2 rounded-lg text-sm transition bg-blue-600 text-white hover:bg-blue-700" @click="closeLoginPopup">我知道了</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 顶部导航 -->
+        <header class="h-14 flex items-center justify-center px-6" style="background: linear-gradient(90deg, #0a1628 0%, #0d1f35 50%, #1a365d 100%);">
+            <div class="flex items-center justify-between w-full max-w-6xl">
+                <div class="flex items-center space-x-1">
+                    <div class="nav-item cursor-pointer" :class="{ 'text-white font-medium': activeTab === 'notice' }" @click="activeTab = 'notice'">通知公告</div>
+                    <div class="nav-item cursor-pointer" @click="activeTab = 'archive'">企业档案</div>
+                    <div class="nav-item cursor-pointer" @click="activeTab = 'archive'">卫企合规</div>
+                    <div class="nav-item cursor-pointer" @click="activeTab = 'risk'">卫企风控</div>
+                </div>
+                <div class="zhe-li-wei-qi">浙里卫企</div>
+                <div class="flex items-center space-x-1">
+                    <div class="nav-item cursor-pointer" @click="activeTab = 'supervise'">分类监督</div>
+                    <div class="nav-item cursor-pointer" @click="activeTab = 'assist'">助企协管</div>
+                    <div class="nav-item cursor-pointer" @click="activeTab = 'monitor'">在线监测</div>
+                    <div class="nav-item cursor-pointer" @click="activeTab = 'more'">更多模块</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="max-w-6xl mx-auto px-6 py-8">
+            <!-- 通知公告区域 -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-1 h-6 bg-blue-500 rounded-full"></div>
+                        <h2 class="text-xl font-bold text-white">通知公告</h2>
+                        <span class="text-gray-400 text-sm">共 <span x-text="filteredNotices.length"></span> 条</span>
+                        <span class="text-green-400 text-sm">已读：<span x-text="readCount"></span> 条</span>
+                        <span class="text-red-400 text-sm">未读：<span x-text="unreadCount"></span> 条</span>
+                    </div>
+                </div>
+
+                <!-- 公告分类 Tab -->
+                <div class="flex items-center space-x-1 mb-6 border-b border-gray-700/50">
+                    <div class="notice-tab" :class="{ 'active': noticeFilter === 'all' }" @click="noticeFilter = 'all'">全部公告</div>
+                    <div class="notice-tab" :class="{ 'active': noticeFilter === 'important' }" @click="noticeFilter = 'important'">重要通知</div>
+                    <div class="notice-tab" :class="{ 'active': noticeFilter === 'normal' }" @click="noticeFilter = 'normal'">一般公告</div>
+                </div>
+
+                <!-- 双栏布局 -->
+                <div class="flex gap-6">
+                    <!-- 左侧公告列表 -->
+                    <div class="w-96 flex-shrink-0 space-y-3 max-h-[560px] overflow-y-auto pr-2">
+                        <template x-for="notice in filteredNotices" :key="notice.id">
+                            <div 
+                                class="notice-card p-4 cursor-pointer transition-all" 
+                                :class="{ 
+                                    'notice-important': notice.type === 'important', 
+                                    'notice-normal': notice.type === 'normal',
+                                    'bg-blue-600/20 border-blue-500/50': currentNotice?.id === notice.id
+                                }" 
+                                @click="selectNotice(notice)"
+                            >
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center space-x-2 mb-1">
+                                            <span class="px-2 py-0.5 rounded text-xs" :class="{ 'tag-important': notice.type === 'important', 'tag-normal': notice.type === 'normal' }" x-text="notice.typeText"></span>
+                                            <span class="px-2 py-0.5 rounded text-xs" :class="{ 'tag-unread': !notice.read, 'tag-read': notice.read }" x-text="notice.read ? '已读' : '未读'"></span>
+                                        </div>
+                                        <h4 class="text-white text-sm font-medium truncate" :title="notice.title" x-text="notice.title"></h4>
+                                        <p class="text-gray-500 text-xs mt-1" x-text="notice.date"></p>
+                                        <button 
+                                            @click.stop="markAsRead(notice.id)"
+                                            x-show="!notice.read"
+                                            class="btn-mark-read px-3 py-1 rounded text-xs mt-2"
+                                        >
+                                            <i class="fa-solid fa-check mr-1"></i>标记为已读
+                                        </button>
+                                    </div>
+                                    <div class="text-gray-600 text-xs">
+                                        <i class="fa-solid fa-eye mr-1"></i>
+                                        <span x-text="notice.views"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="filteredNotices.length === 0" class="text-center py-12">
+                            <i class="fa-solid fa-bullhorn text-gray-600 text-4xl mb-3"></i>
+                            <p class="text-gray-500 text-sm">暂无通知公告</p>
+                        </div>
+                    </div>
+
+                    <!-- 右侧公告详情 -->
+                    <div class="flex-1">
+                        <div x-show="currentNotice" class="floating-card rounded-xl p-6">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex items-center space-x-3 flex-wrap gap-y-2">
+                                    <span class="px-3 py-1 rounded text-sm" :class="{ 'tag-important': currentNotice.type === 'important', 'tag-normal': currentNotice.type === 'normal' }" x-text="currentNotice.typeText"></span>
+                                    <span class="px-3 py-1 rounded text-sm" :class="{ 'tag-unread': !currentNotice.read, 'tag-read': currentNotice.read }" x-text="currentNotice.read ? '已读' : '未读'"></span>
+                                </div>
+                            </div>
+
+                            <h3 class="text-xl font-bold text-white mb-4" x-text="currentNotice.title"></h3>
+
+                            <div class="flex items-center space-x-6 text-sm text-gray-400 mb-4">
+                                <span>发布时间：<span class="text-gray-300" x-text="currentNotice.date"></span></span>
+                                <span>浏览量：<span class="text-gray-300" x-text="currentNotice.views"></span></span>
+                            </div>
+
+                            <!-- 摘要 -->
+                            <div x-show="currentNotice.summary" class="bg-gray-700/30 rounded-lg p-4 mb-4">
+                                <p class="text-gray-400 text-xs mb-2">📝 摘要</p>
+                                <p class="text-gray-300 text-sm" x-text="currentNotice.summary"></p>
+                            </div>
+
+                            <!-- 正文 -->
+                            <div class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap" x-text="currentNotice.content"></div>
+
+                            <!-- 附件列表 -->
+                            <div x-show="currentNotice.attachments && currentNotice.attachments.length > 0" class="mt-6 pt-4 border-t border-gray-700">
+                                <p class="text-gray-400 text-xs mb-3">📎 附件（<span x-text="currentNotice.attachments.length"></span> 个）</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="(att, idx) in currentNotice.attachments" :key="idx">
+                                        <div class="att-item">
+                                            <i class="fa-regular fa-file text-blue-400 text-sm"></i>
+                                            <span class="text-gray-300 text-xs" x-text="att.name || att"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end mt-6 pt-4 border-t border-gray-700">
+                                <button 
+                                    @click="markAsRead(currentNotice.id)"
+                                    x-show="!currentNotice.read"
+                                    class="btn-mark-read px-4 py-2 rounded text-sm"
+                                >
+                                    <i class="fa-solid fa-check mr-1"></i>标记为已读
+                                </button>
+                            </div>
+                        </div>
+
+                        <div x-show="!currentNotice" class="floating-card rounded-xl p-12 text-center">
+                            <i class="fa-solid fa-file-text text-gray-600 text-6xl mb-4"></i>
+                            <p class="text-gray-500">请选择一条公告查看详情</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 公告详情弹窗 -->
+        <div x-show="showNoticeModal" class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0, 0, 0, 0.7);" @click.self="showNoticeModal = false">
+            <div class="bg-gray-800 rounded-xl w-[680px] max-h-[85vh] overflow-y-auto glow-border">
+                <div class="flex items-center justify-between p-6 border-b border-gray-700">
+                    <div class="flex items-center space-x-3">
+                        <h3 class="text-lg font-semibold text-white" x-text="currentNotice?.title"></h3>
+                        <span class="px-2 py-1 rounded text-xs" :class="{ 'tag-important': currentNotice?.type === 'important', 'tag-normal': currentNotice?.type === 'normal' }" x-text="currentNotice?.typeText"></span>
+                    </div>
+                    <button class="text-gray-400 hover:text-white transition" @click="showNoticeModal = false">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center space-x-4 text-sm text-gray-400">
+                        <span>发布时间：<span class="text-gray-300" x-text="currentNotice?.date"></span></span>
+                        <span>浏览量：<span class="text-gray-300" x-text="currentNotice?.views"></span></span>
+                    </div>
+                    <div x-show="currentNotice?.summary" class="bg-gray-700/30 rounded-lg p-4 text-gray-300 text-sm">
+                        <p class="text-gray-400 text-xs mb-1">📝 摘要</p>
+                        <p x-text="currentNotice?.summary"></p>
+                    </div>
+                    <div class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap" x-text="currentNotice?.content"></div>
+                    <!-- 附件 -->
+                    <div x-show="currentNotice?.attachments && currentNotice.attachments.length > 0" class="pt-2">
+                        <p class="text-gray-400 text-xs mb-2">📎 附件（<span x-text="currentNotice.attachments.length"></span> 个）</p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="(att, idx) in currentNotice.attachments" :key="idx">
+                                <div class="att-item">
+                                    <i class="fa-regular fa-file text-blue-400 text-sm"></i>
+                                    <span class="text-gray-300 text-xs" x-text="att.name || att"></span>
+                                </div>
+                            </template>
+                        </div>
+                </div>
+                <div class="flex justify-end p-4 border-t border-gray-700">
+                    <button class="px-6 py-2 rounded-lg text-sm transition bg-blue-600 text-white hover:bg-blue-700" @click="showNoticeModal = false">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function noticeApp() {
+            return {
+                activeTab: 'notice',
+                noticeFilter: 'all',
+                currentNotice: null,
+                showNoticeModal: false,
+                showLoginPopup: false,
+                toast: { show: false, message: '', type: 'info' },
+
+                // 模拟公告数据（与公告管理后台数据模型对应）
+                notices: [
+                    {
+                        id: 1,
+                        title: '关于开展2024年度企业安全检查的通知',
+                        summary: '为加强企业安全生产管理，落实年度工作计划，现决定开展2024年度企业安全检查工作。',
+                        content: '各相关企业：根据年度工作计划，我单位将于2024年12月开展企业安全检查工作。请各企业提前做好准备，按要求提交相关材料。\n\n检查内容包括：\n1. 安全生产管理制度\n2. 应急预案编制情况\n3. 人员培训记录\n4. 设备设施维护情况\n\n请各企业配合做好迎检准备。',
+                        type: 'important',
+                        typeText: '重要公告',
+                        popupShow: true,
+                        publishStatus: 'published',
+                        publishStatusText: '已发布',
+                        attachments: [
+                            { name: '2024年度安全检查实施方案.pdf', size: 2048 },
+                            { name: '安全检查自查表.xlsx', size: 1024 }
+                        ],
+                        read: false,
+                        date: '2024-12-01 10:30',
+                        views: 128
+                    },
+                    {
+                        id: 2,
+                        title: '系统维护通知',
+                        summary: '系统将于本周六进行例行维护。',
+                        content: '尊敬的用户：\n\n为保障系统稳定运行，我们将于本周六 00:00-06:00 进行系统维护，期间系统将暂停服务，敬请谅解。\n\n维护期间如有任何问题，请联系技术支持。',
+                        type: 'normal',
+                        typeText: '一般公告',
+                        popupShow: false,
+                        publishStatus: 'published',
+                        publishStatusText: '已发布',
+                        attachments: [],
+                        read: true,
+                        date: '2024-12-10 15:20',
+                        views: 89
+                    },
+                    {
+                        id: 3,
+                        title: '企业年报申报截止提醒',
+                        summary: '2024年度企业年报申报即将截止。',
+                        content: '各企业单位：\n\n2024年度企业年报申报截止日期为2025年1月31日，请各企业按时完成申报，逾期将影响企业信用记录。\n\n请登录系统后在"企业年报"模块完成申报工作。',
+                        type: 'important',
+                        typeText: '重要公告',
+                        popupShow: true,
+                        publishStatus: 'published',
+                        publishStatusText: '已发布',
+                        attachments: [
+                            { name: '年报申报操作指南.pdf', size: 3072 }
+                        ],
+                        read: false,
+                        date: '2024-12-15 09:00',
+                        views: 256
+                    },
+                    {
+                        id: 4,
+                        title: '新版操作指南发布',
+                        summary: '系统新版操作指南已发布。',
+                        content: '新版操作指南已更新，主要更新内容：\n\n1. 优化了首页布局\n2. 新增了快捷入口功能\n3. 改进了搜索体验\n\n请用户登录系统后在帮助中心查看完整指南。',
+                        type: 'normal',
+                        typeText: '一般公告',
+                        popupShow: false,
+                        publishStatus: 'draft',
+                        publishStatusText: '草稿',
+                        attachments: [],
+                        read: true,
+                        date: '2024-12-18 14:30',
+                        views: 156
+                    },
+                    {
+                        id: 5,
+                        title: '关于调整企业信用评分规则的通知',
+                        summary: '企业信用评分规则将于2025年1月起调整。',
+                        content: '各相关企业：\n\n为进一步优化企业信用评价体系，自2025年1月1日起，企业信用评分规则将进行以下调整：\n\n1. 增加安全生产指标权重\n2. 新增环保合规评分项\n3. 优化加分机制\n\n具体细则请查看附件。',
+                        type: 'important',
+                        typeText: '重要公告',
+                        popupShow: true,
+                        publishStatus: 'published',
+                        publishStatusText: '已发布',
+                        attachments: [
+                            { name: '信用评分规则调整说明.pdf', size: 1536 },
+                            { name: '新旧规则对比表.xlsx', size: 896 }
+                        ],
+                        read: false,
+                        date: '2024-12-20 08:00',
+                        views: 312
+                    },
+                    {
+                        id: 6,
+                        title: '元旦假期系统运行安排',
+                        summary: '元旦假期期间系统正常运行，人工服务暂停。',
+                        content: '尊敬的用户：\n\n元旦假期期间（2025年1月1日-1月3日），系统将正常运行，但人工客服服务暂停。如遇紧急问题，请通过在线留言提交，我们将在节后第一时间处理。\n\n祝大家元旦快乐！',
+                        type: 'normal',
+                        typeText: '一般公告',
+                        popupShow: false,
+                        publishStatus: 'published',
+                        publishStatusText: '已发布',
+                        attachments: [],
+                        read: true,
+                        date: '2024-12-25 16:00',
+                        views: 67
+                    }
+                ],
+
+                // 计算属性 — 只展示已发布和草稿（不展示已撤回）
+                get publishedNotices() {
+                    return this.notices.filter(n => n.publishStatus !== 'withdrawn');
+                },
+
+                get filteredNotices() {
+                    let result = this.publishedNotices;
+                    if (this.noticeFilter === 'important') {
+                        result = result.filter(n => n.type === 'important');
+                    } else if (this.noticeFilter === 'normal') {
+                        result = result.filter(n => n.type === 'normal');
+                    }
+                    // 按发布时间降序（最近的在前面）
+                    return result.sort((a, b) => new Date(b.date) - new Date(a.date));
+                },
+
+                // 需要登录弹窗的公告
+                get loginPopupNotices() {
+                    return this.publishedNotices.filter(n => n.popupShow && !n.read);
+                },
+
+                get readCount() {
+                    return this.notices.filter(n => n.read).length;
+                },
+
+                get unreadCount() {
+                    return this.notices.filter(n => !n.read).length;
+                },
+
+                // 方法
+                selectNotice(notice) {
+                    this.currentNotice = notice;
+                },
+
+                markAsRead(noticeId) {
+                    const notice = this.notices.find(n => n.id === noticeId);
+                    if (notice && !notice.read) {
+                        notice.read = true;
+                        if (this.currentNotice && this.currentNotice.id === noticeId) {
+                            this.currentNotice.read = true;
+                        }
+                    }
+                },
+
+                closeLoginPopup() {
+                    // 关闭弹窗时自动标记所有弹窗公告为已读
+                    this.loginPopupNotices.forEach(n => this.markAsRead(n.id));
+                    this.showLoginPopup = false;
+                },
+
+                showToast(message, type = 'info') {
+                    this.toast = { show: true, message, type };
+                    clearTimeout(this._toastTimer);
+                    this._toastTimer = setTimeout(() => { this.toast.show = false; }, 3000);
+                },
+
+                // 初始化：默认选中第一条 + 模拟登录弹窗
+                init() {
+                    this.currentNotice = this.filteredNotices[0] || null;
+
+                    // 模拟登录后弹窗（延迟1秒展示，模拟页面加载）
+                    setTimeout(() => {
+                        if (this.loginPopupNotices.length > 0) {
+                            this.showLoginPopup = true;
+                        }
+                    }, 800);
+                }
+            };
+        }
+    </script>
+</body>
+</html>
